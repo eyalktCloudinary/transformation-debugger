@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang=en>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Transformation Debugger</title>
+    <!-- <link rel="preconnect" href="https://fonts.gstatic.com"> -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="../css/transformation.css" />
+</head>
+<body>
+<div id="container">
+    <!-- <div id="title">debugger</div> -->
+    
+    <!-- <div id="error"></div> -->
+    <!-- <div id="stepByStepSwitch"></div> -->
+    <div id="content">
+        
+        <div id="actionsPane">
+            <div class="header">
+                <h1 class="title">debugger</h1>
+                <div class="actions-btns">
+                    <button id="jumpToStart" class="btn-style">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-chevron-double-left" viewBox="0 0 14 14">
+                            <path fill-rule="evenodd" d="M8.354 1.646a.5.5 0 0 1 0 .708L2.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+                            <path fill-rule="evenodd" d="M12.354 1.646a.5.5 0 0 1 0 .708L6.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+                        </svg>
+                    </button>
+                    <button id="prev" class="btn-style">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-chevron-left" viewBox="0 0 14 14">
+                            <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+                        </svg>
+                    </button>
+                    <button id="next" class="btn-style">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-chevron-right" viewBox="0 0 14 14">
+                            <path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/>
+                        </svg>
+                    </button>
+                    <button id="jumpToEnd" class="btn-style">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-chevron-double-right" viewBox="0 0 14 14">
+                            <path fill-rule="evenodd" d="M3.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L9.293 8 3.646 2.354a.5.5 0 0 1 0-.708z"/>
+                            <path fill-rule="evenodd" d="M7.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L13.293 8 7.646 2.354a.5.5 0 0 1 0-.708z"/>
+                        </svg>
+                    </button>
+                    <button id="reset" class="btn-style">Reset</button>
+                    <button id="apply" class="btn-style">Apply Changes</button>
+                </div>
+            </div>
+            <div class="main" id="breakdown">
+                <div id="text">
+                    <div id="urlPrefix"></div>
+                    <div id="steps">
+                        <!-- <div id="prevSteps"></div> contenteditable -->
+                        <!-- <div id="transformation" contenteditable spellcheck=false></div> -->
+                    </div>
+                    <div id="urlSuffix"></div>
+                </div>
+                
+            </div>
+        </div>
+        <div id="previewPane">
+            <div class="header" id="navigator">
+                <div id="error"></div>
+                <div class="actions-btns"></div>
+            </div>
+            <div class="main" id="previewWall">
+                <!-- preview element img/video -->
+            </div>
+        </div>
+    </div>
+
+    <div class="url-wrapper">
+        <button id="copyURL" class="btn-style">Copy</button>
+        <div id="URL"></div>
+    </div>
+</div>
+
+<script type="text/javascript" src="../js/transformation.js"></script>
+</body>
+</html>
