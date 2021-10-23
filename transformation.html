@@ -5,7 +5,8 @@
     <title>Transformation Debugger</title>
     <!-- <link rel="preconnect" href="https://fonts.gstatic.com"> -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" type="text/css" href="./transformation.css" />
+    <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/hack-font@3.3.0/build/web/hack-subset.css'>
+    <link rel="stylesheet" type="text/css" href="../css/transformation.css" />
 </head>
 <body>
 <div id="container">
@@ -17,7 +18,10 @@
         
         <div id="actionsPane">
             <div class="header">
-                <h1 class="title">debugger</h1>
+                <div class="title">
+                    <img src="../Icon_v2-256.png"></img>
+                    <h1>Transformation Debugger</h1>
+                </div>
                 <div class="actions-btns">
                     <button id="jumpToStart" class="btn-style">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-chevron-double-left" viewBox="0 0 14 14">
@@ -74,6 +78,7 @@
     </div>
 </div>
 
-<script type="text/javascript" src="./transformation.js"></script>
+<script type="text/javascript" src="../library.js"></script>
+<script type="text/javascript" src="../transformation.js"></script>
 </body>
 </html>

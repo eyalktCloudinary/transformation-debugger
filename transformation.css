@@ -41,6 +41,7 @@ div#breakdown #text {
     box-sizing: border-box;
     height: 70%;
     line-height: 20px;
+    font-family: Hack, monospace;
 }
 
 div#URL {
@@ -95,10 +96,22 @@ img#preview, video#preview {
 }
 
 .title {
-    text-transform: uppercase;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+.title h1 {
+    /* text-transform: uppercase; */
     color: #3448c5;
     font-size: 16px;
     font-weight: inherit;
+}
+
+.title img {
+    width: 30px;
+    height: 30px;
 }
 
 /* .subTitle {
@@ -206,4 +219,15 @@ div#error {
 div#previewWall.skeleton img {
     visibility: hidden;
 }
+
+div#steps div[contenteditable]::after {
+    content: " /";
+    color: darkgray;
+}
+
+div#urlPrefix::after {
+    content: "/";
+    color: darkgray;
+}
+
 

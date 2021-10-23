@@ -1,4 +1,3 @@
-const windowId = parseInt((new URLSearchParams(window.location.search)).get('window')); // origin window
 let index = 0;
 let prefixURL, 
     suffixURL, currentSuffix,
@@ -25,67 +24,61 @@ let prefixURL,
  /**
   *  TODO:
   * 
-  * text handler - creatElem is called twice (inside copyStep and explicitly)
+  * make it a standalone app
   * 
-  * add - suppress color commas /& surround commas with spaces
-  * add - HTML slashes line endings
-  * add - UI/option to add steps
-  * add - line numbers (CSS/HTML) + specify line number in error?
+  * add - UI/option to add steps + listen to "/", newline key
   * 
-  * 
+  * add - show curr image details - dimensions, ?
+  * fix - derive elem type from URL ('image/upload' can be also a video, and 'video/upload' can be also an image)
+  * add - "undo" "redo"
+  * add - option to enable/disable specific steps
   * add - allow changing of the URL prefix (host, delivery/resource? type, SEO)
   * add - support SEOs/CNAMES
-  * add - enable/disable specific steps
   * add - loading gif ?
-  * add - "undo" "redo"
-  * add - support signed URLs ???
-  * make it a standalone app
-  * add - show curr image details - dimensions
-  * add tips ?
+  * add - line/step numbers (CSS/HTML) + specify line number in error?
   * 
-  * DONE -
-  * add - checker boxes for transparent images - DONE
-  * add - line indicating the indentation - left border? - DONE
-  * show x-cld-error - DONE
-  * add - allow changing the public ID - DONE
+  * add - tips! e.g - uneven # of layers/apply
+  * add - support signed URLs ???
+  * add - tooltips describing transformation parameters (with a link to the relevant docs?)
+  * 
+  * add a diff between original transformation and changed transformation (strikethrough) - deleted modified added.
+  * 
+  * text handler - creatElem is called twice (inside copyStep and explicitly)
   * 
   * 
   */
+ 
+const urlParams = new URLSearchParams(window.location.search);
+const standAlone = urlParams.get('sa');
+if (standAlone === 'false') {
+    const windowId = parseInt(urlParams.get('window')); // origin window
+    chrome.tabs.query({windowId}, function(tabs) { // handshake
+        chrome.tabs.sendMessage(tabs[0].id, {greeting: 'hello'}, response => init(response.url));
+    });
+}
+else {
+    console.log('stand alone');
+}
 
-chrome.tabs.query({windowId}, function(tabs) { // handshake
-    chrome.tabs.sendMessage(tabs[0].id, {greeting: "hello"}, init);
-});
+function init(url) {
 
-function init(response) {
-    console.log(response.farewell, {response});
+    const parsedURL = parseCloudinaryURL(url);
+    const trStrings = parsedURL.transformationStr;
+    const layerMap = createLayerMap(parsedURL.transformation);
 
     // initiate global params
-    firstStepOriginal = generateSteps(response.steps);
+    // firstStepOriginal = generateSteps(response.steps);
+
+    firstStepOriginal = generateSteps(layerMap, trStrings);
     firstStepChanged = copyStepsList(firstStepOriginal);
     currentFirst = firstStepOriginal;
     currentStep = firstStepOriginal;
     
-    prefixURL = response.prefixURL;
-    suffixURL = response.suffixURL;
+    prefixURL = parsedURL.url.slice(0, parsedURL.url.indexOf(trStrings[0])-1);
+    let urlArray = parsedURL.url.split('/');
+    suffixURL = urlArray.slice(urlArray.indexOf(trStrings[0]) + trStrings.length).join('/');
+
     currentSuffix = suffixURL;
-
-    const initialURL = generateURL(currentFirst);
-
-    // create and configure preview element
-    let elemType = response.elem;
-    const previewElem = document.createElement(elemType);
-    previewElem.src = initialURL;
-    previewElem.id = "preview";
-    previewElem.onerror = () => console.log(error); 
-
-    if (elemType === "video") previewElem.controls = true;
-    document.getElementById("previewWall").appendChild(previewElem);
-
-    // configure URL and navigator elements
-    document.getElementById("URL").innerText = initialURL;
-    document.getElementById("prev").onclick = prev;
-    document.getElementById("next").onclick = next;
-    toggleNav(currentFirst);
 
     // init the transformation breakdown text editor
     document.getElementById("urlPrefix").innerText = prefixURL;
@@ -103,6 +96,24 @@ function init(response) {
     document.getElementById("jumpToEnd").onclick = jumpToEnd;
     document.getElementById("jumpToStart").onclick = jumpToStart;
 
+    const initialURL = generateURL(currentFirst);
+
+    // create and configure preview element
+    const elem = parsedURL.resource_type === "video" ? "video" : "img";
+    let elemType = elem;
+    const previewElem = document.createElement(elemType);
+    previewElem.src = initialURL;
+    previewElem.id = "preview";
+    previewElem.onerror = () => console.log(error); 
+
+    if (elemType === "video") previewElem.controls = true;
+    document.getElementById("previewWall").appendChild(previewElem);
+
+    // configure URL and navigator elements
+    document.getElementById("URL").innerText = initialURL;
+    document.getElementById("prev").onclick = prev;
+    document.getElementById("next").onclick = next;
+    toggleNav(currentFirst);
 
     // Listening for x-cld-error header
     chrome.webRequest.onHeadersReceived.addListener(
@@ -137,6 +148,132 @@ function init(response) {
     observer.observe(previewElem, {attributes : true});
     previewElem.onload = () => previewElem.parentNode.classList.remove("skeleton");
 
+    function generateSteps(layerMap, trStrings) {
+        const oldSteps = stringifySteps(layerMap, trStrings)
+    
+        let i = 0;
+        let currStep;
+        let firstStep = { 
+            stepStr:            oldSteps[i].stepStr,
+            ancestor:           undefined,
+            next:               undefined,
+            prev:               undefined,
+            siblingStep:        undefined,
+            isOriginalSteps:    true
+        }
+        firstStep.element = createElem(firstStep, "step" + i);
+        i++;
+        currStep = firstStep;
+        for (; i < oldSteps.length; i++) {
+            let newStep = {
+                stepStr:            oldSteps[i].stepStr,
+                ancestor:           oldSteps[i].ancestor ? oldSteps[oldSteps[i].ancestor].newStep : undefined,
+                next:               undefined,
+                prev:               currStep,
+                siblingStep:        undefined,
+                isOriginalSteps:    true
+            }
+            newStep.element = createElem(newStep, "step" + i);
+            oldSteps[i].newStep = newStep;
+            currStep.next = newStep;
+            currStep = newStep;
+        }
+        return firstStep;
+    }
+    
+    function stringifySteps(layerMap, trStrings) {
+        function isLayerApply(j, map) {
+            let res = false;
+            map.forEach((layer) => {if (layer.end === j && layer.start !== j) res = true}); 
+            // map.forEach((layer) => {if (layer.end == j) res = true}); // && layer.start != j
+            return res;
+        }
+        function generateExploadSteps(trStrings, layersMap, i, k) {  // generates a single URL steps
+            let ancestor;
+            
+            var relevantIndices = [];
+            relevantIndices.push(i);
+            for (var j=0; j<=i; j++) {
+                // relevantIndices.push(j);
+                layersMap.forEach((layer, layerIndex) => {
+                    if (j >= layer.start && layer.end >= i) {
+                        if (j === layer.start && j!=i) {
+                            ancestor = layer.step;//j-1;
+                        }
+                        // relevantIndices.push(j);
+                        // relevantIndices.push(layer.end);
+                    }
+                    if (i === layer.start) {
+                        layer.step = k;
+                        relevantIndices.push(layer.end);
+                    }
+                })
+            }
+            relevantIndices = [...new Set(relevantIndices)]; // removes duplicates
+            relevantIndices.sort((a, b) => a - b);
+            var t = {
+                ancestor,
+                stepStr: relevantIndices.map((i) => trStrings[i]),//.join('/'),
+            }
+            // console.log("rel", i+1, relevantIndices.map((i) => i+1), t);
+            return t;
+        }
+        
+        const steps = [];
+        steps.push({
+            stepStr:['']
+        });
+    
+        for (var j=0, k=1; j<=trStrings.length - 1; j++) {
+            if (isLayerApply(j,layerMap)) continue;
+            steps.push(generateExploadSteps(trStrings, layerMap, j, k)); // index:j, step
+            k++;
+        }
+    
+        console.log("expload",{layerMap, steps});
+        
+        return steps;
+    }
+
+    function createLayerMap(tr) {
+        // general logic referenced from renderHTML method of viewDetails.js
+        // gets output of parseCloudinaryURL(url)
+        
+        const transformation = tr;
+        console.log(transformation);
+        let layerDepth = 0;
+        const layerMap = [];
+    
+        for( let i=0; i<transformation.length; i++ ) {
+            for( let j=0; j<transformation[i].length; j++ ) {
+                // If statement
+                if( transformation[i][j].name === 'If' ) {
+                }
+    
+                // Flags Layer Apply
+                else if( transformation[i][j].name === 'Flags' && transformation[i][j].value.indexOf('layer_apply') >= 0 ) {
+                    fl_layer_apply:
+                    for( var k=i; k>=0; k-- ) {
+                        for( var l=0; l<transformation[k].length; l++ ) {
+                            if( ['Overlay','Underlay'].indexOf(transformation[k][l].name) >= 0 ) {
+                                if( --layerDepth === 0 || k === i) { // added || k === i 
+                                    break fl_layer_apply;
+                                }
+                            }
+                            else if( transformation[k][l].name === 'Flags' && transformation[k][l].value.indexOf('layer_apply') >= 0 ) {
+                                layerDepth++;
+                                break;
+                            }
+                        }
+                    }
+                    // if k = -1 then either l_layer,fl_layer_apply (k = i) OR no layer apply present 
+                    layerMap.push({end: i, start: k});
+                }
+            }
+        }
+        console.log("layerMap", layerMap);
+        return layerMap;
+    }
 }
 
 function copyStepsList(from, to) {
@@ -170,37 +307,6 @@ function copyStep(step, isOriginal) { // isOriginal -> whether the new step is o
     if (step.isOriginalSteps) newStep.element = createElem(newStep, step.element.id + "c");
     else newStep.element = createElem(newStep, step.element.id);
     return newStep;
-}
-
-function generateSteps(oldSteps) {
-    let i = 0;
-    let currStep;
-    let firstStep = { 
-        stepStr:            oldSteps[i].stepStr,
-        ancestor:           undefined,
-        next:               undefined,
-        prev:               undefined,
-        siblingStep:        undefined,
-        isOriginalSteps:    true
-    }
-    firstStep.element = createElem(firstStep, "step" + i);
-    i++;
-    currStep = firstStep;
-    for (; i < oldSteps.length; i++) {
-        let newStep = {
-            stepStr:            oldSteps[i].stepStr,
-            ancestor:           oldSteps[i].ancestor ? oldSteps[oldSteps[i].ancestor].newStep : undefined,
-            next:               undefined,
-            prev:               currStep,
-            siblingStep:        undefined,
-            isOriginalSteps:    true
-        }
-        newStep.element = createElem(newStep, "step" + i);
-        oldSteps[i].newStep = newStep;
-        currStep.next = newStep;
-        currStep = newStep;
-    }
-    return firstStep;
 }
 
 function prev() {
@@ -241,16 +347,23 @@ function next() {
 }
 
 function discardChanges() {
+    console.log("discardChanges", {changesMade});
     changesMade.forEach(change => {
-        let cs = change.oldStep;
-        let el = createElem(cs, cs.element.id);
-        cs.element.parentNode.replaceChild(el, cs.element);
-        cs.element = el;
+        if (change.step) {
+            let cs = change.step.oldStep;
+            let el = createElem(cs, cs.element.id);
+            cs.element.parentNode.replaceChild(el, cs.element);
+            cs.element = el;
+        }
+        else if (change.suffix) {
+            resetSuffix();
+        }
     });
     changesMade = [];
     isChangesMade = false;
     navigateHelper(currentStep, true);
     document.getElementById("apply").disabled = true;
+    if (!changesApplied) document.getElementById("reset").disabled = true;
 }
 
 function jumpToEnd() {
@@ -263,12 +376,6 @@ function jumpToEnd() {
     }
 }
 
-// function jumpToStart() {
-//     document.getElementById("steps").innerHTML = "";
-//     currentStep = currentFirst;
-//     navigateHelper(currentStep,true);
-// }
-
 function jumpToStart() {
     let cs = currentStep;
     // resetPrevElems();
@@ -280,6 +387,7 @@ function jumpToStart() {
 
 }
 
+// Not in use atm
 function jumpToStep(step) { ////
     let cs = currentFirst;
     // resetPrevElems();
@@ -299,7 +407,6 @@ function createElem(step, id) {
     const elem = document.createElement("div");
 
     if (step.stepStr.length === 2) {
-        console.log("createElem ---");
         const start = document.createElement("div");
         start.innerText = step.stepStr[0];
         start.id = id + "s";
@@ -319,13 +426,16 @@ function createElem(step, id) {
         elem.spellcheck = false;
     }
     elem.id = id;
-    // elem.onclick = () => jumpToStep(step);
-    // elem.onclick = () => textHandler(step);
-    // elem.onclick = () => {
-    //     // elem.contentEditable = true;
-    //     elem.focus = true;///
-    // }
-    elem.oninput = (e) => {console.log(e); textHandler(step, e.target.innerText, e.target.id);}
+
+    // prevent new-lines from being added by the user
+    elem.addEventListener('beforeinput', (e) => {
+        console.log("beforeinput", e);
+        if (e.inputType === "insertParagraph") e.preventDefault();
+    })
+    
+    elem.oninput = (e) => {
+        textHandler(step, e.target.innerText, e.target.id);
+    }
     
     return elem;
 }
@@ -349,16 +459,16 @@ function navigateHelper(step, isNext) { // isNext is boolean representing direct
 
 function updateViewCurElem(step, isNext, isTraverse) {
     console.log("up", step);
-    url = generateURL(step);
-    document.getElementById("preview").src = url;
-    document.getElementById("URL").innerText = url;
-    // document.getElementById("transformation").innerText = beautifyURL(step);
+    // url = generateURL(step); //
+    // document.getElementById("preview").src = url; //
+    // document.getElementById("URL").innerText = url; //
 
-    if(!isTraverse) return;
+    if (!isTraverse) return;
+    
     if (!isNext && step.next) { 
         step.next.element.remove();
-        toggleNav(step);
-        return;
+        //toggleNav(step); //
+        //return; //
     } 
 
     else if (step.ancestor) {
@@ -378,6 +488,10 @@ function updateViewCurElem(step, isNext, isTraverse) {
             document.getElementById("steps").appendChild(step.element);
         }
     }
+
+    url = generateURL(step); //
+    document.getElementById("preview").src = url; //
+    document.getElementById("URL").innerText = url; //
 
     // const bu = beautifyURL(step);
     // document.getElementById("transformation").innerText = bu === '' ? "edit" : bu;
@@ -407,6 +521,8 @@ function toggleNav(step) {
 }
 
 function reset() {
+    console.log("reset");
+    if (!isChangesApplied) return discardChanges();
     isChangesApplied = false;
     isChangesMade = false;
     resetSteps();
@@ -419,21 +535,18 @@ function reset() {
 }
 
 function resetSteps() { 
+    console.log("resetSteps");
+    changesMade.forEach(change => {
+        if (change.step) {
+            resetElems(change.step.oldStep, false); // retreive elements back to their original state
+        }
+        // else if (change.suffix) applySuffixChange(change);
+    });
 
-    // isChangesApplied = false;
-    // isChangesMade = false;
     firstStepChanged = copyStepsList(firstStepOriginal);
 
     currentFirst = firstStepOriginal;
     currentStep = firstStepOriginal;
-    
-    // resetSuffix();
-    // changesMade = [];
-    // resetPrevElems();
-    // updateViewCurElem(currentStep, true, true);
-    
-    // document.getElementById("reset").disabled = true;
-    // document.getElementById("apply").disabled = true;
     
 }
 
@@ -447,6 +560,7 @@ function resetStepElem(step) {
 }
 
 function resetElems(step, isDeep) { // isDeep => go to ancstors
+    console.log("resetElems", step, isDeep);
     resetStepElem(step);
     if (isDeep) {
         while (step.ancestor) { 
@@ -492,48 +606,30 @@ function applySingleChange(change) {
     // let isChangesApplied = currentFirst === firstStepChanged;
     
     // if (!isChangesMade) return;
-    if (!isChangesApplied) { // first click on apply (editing the original steps list) // currentFirst === firstStepOriginal 
-        // currentStep.siblingStep = tempStep;
-        // tempStep.siblingStep = tempStep;
-        // stepToSwitch = stepToSwitch.siblingStep; console.log("aaaaaaaooooo",changesMade[0].stepToSwitch, stepToSwitch);
-        // stepToSwitch = stepToSwitch.siblingStep;
-        // console.log("aaaaaaaooooo2",tempStep.siblingStep === changesMade[0].oldStep);
+    if (!isChangesApplied) { // first click on apply (editing the original steps list) 
         let stepToSwitch = change.step.oldStep.siblingStep; 
         tempStep.prev = stepToSwitch.prev;
         tempStep.next = stepToSwitch.next;
         insertStep(tempStep,  tempStep.prev, tempStep.next);
-        // insertStep(tempStep, tempStep.prev, tempStep.next);
         
         tempStep.siblingStep.siblingStep = tempStep;
         tempStep.siblingStep.element = createElem(tempStep.siblingStep, tempStep.siblingStep.element.id);
         
-        // currentStep = currentStep.siblingStep;
-        // currentFirst = firstStepChanged;
-        
         // if step is ancestor - update all decendents
         updateDecendents(stepToSwitch, tempStep, firstStepChanged);
         
-        console.log("aaaa", "tempStep",tempStep,"currentStep",currentStep);
-        // updateViewAllElems(currentStep, currentFirst);
+        //console.log("first applied", "tempStep",tempStep,"currentStep",currentStep);
     } else {
-        // let oldStep = tempStep.siblingStep.siblingStep;
-        // console.log("else", {tempStep, stepToSwitch});
-        let stepToSwitch = change.step.oldStep; ///////////////////////////
+        let stepToSwitch = change.step.oldStep; 
         tempStep.prev = stepToSwitch.prev;
         tempStep.next = stepToSwitch.next;
         insertStep(tempStep, tempStep.prev, tempStep.next);
         tempStep.siblingStep = tempStep.siblingStep.siblingStep;
         tempStep.siblingStep.siblingStep = tempStep;
-        // tempStep.siblingStep.element = createElem(tempStep.siblingStep, tempStep.siblingStep.element.id);
-        // currentStep = tempStep;
-        // updateViewCurElem(currentStep, true, false);
 
-        // let c = changesMade.find(change => change.newStep === tempStep);
-        // if (c && c.oldStep === currentStep) currentStep = tempStep;
         if (change.step.oldStep === currentStep) currentStep = tempStep;
         updateDecendents(stepToSwitch, tempStep, firstStepChanged);
-        console.log("bbbb", currentStep);
-        // updateViewAllElems(currentStep, currentFirst);
+        console.log("applied", currentStep);
     }
 
     if (!tempStep.prev) firstStepChanged = tempStep;
@@ -568,6 +664,8 @@ function insertStep(step, prev, next) {
 }
 
 function generateURL(step) {
+
+    return generateURLbyElems();
 
     let relevantComponents = [];
     
@@ -610,33 +708,40 @@ function generateURL(step) {
     return  prefixURL + '/' + tr +  '/' + currentSuffix;
 }
 
+function generateURLbyElems(params) {
+
+    let urlDirtyElem = document.getElementById("text");
+    return urlDirtyElem.innerText.replace(/\n/g,'/');
+
+}
+
 function beautifyURL(step) {
     console.log("b",step.stepStr);
     return step.stepStr;// + "\n";
 }
 
-function textHandler(step, innerText, elemID) {
-    // console.log("innerText", innerText, "elemID", elemID);
+function textHandler(step, currTextValue, elemID) {
+    // console.log("currTextValue", currTextValue, "elemID", elemID);
     // console.log("th-step",step);
     // console.log("step?",findStepByElem(elemID));
+    console.log("textHandler - 1", step, currTextValue, elemID);
     step = findStepByElem(elemID);
 
     isChangesMade = true;
     document.getElementById("reset").disabled = false;
     document.getElementById("apply").disabled = false;
-    const newTr = innerText;
+    const newTr = currTextValue;
     const isOriginal = step.isOriginalSteps;
     // if step is already in changed steps - update it
     let tempStep;
     let oldChange = changesMade.find(change => change.step && change.step.oldStep === step);
     if (oldChange) tempStep = oldChange.newStep;
-    // console.log("th",oldChange);
     // const newElement = step.element.cloneNode(true);
-    console.log("bbbb", {tempStep,oldChange});
+    console.log("textHandler - 2", {tempStep,oldChange});
     if (!tempStep) {
         if (isOriginal) {
             tempStep = copyStep(step.siblingStep, false);
-            console.log("1 - element",tempStep);
+            // console.log("1 - element",tempStep);
             tempStep.siblingStep = step; ///
             tempStep.ancestor = step.siblingStep.ancestor; ///////////////////////////////////////////////
             tempStep.next = step.siblingStep.next;
@@ -651,7 +756,7 @@ function textHandler(step, innerText, elemID) {
         }
     }
     if (step.stepStr.length === 2) {
-        console.log("thththth",elemID.charAt(elemID.length-1));
+        // console.log("thththth",elemID.charAt(elemID.length-1));
         let oldCompTr; // Complementary
         if (elemID.charAt(elemID.length-1) === 's') {
             oldCompTr = oldChange ? tempStep.stepStr[1] : step.stepStr[1];
@@ -666,11 +771,10 @@ function textHandler(step, innerText, elemID) {
     }
     
     tempStep.element = createElem(tempStep, tempStep.element.id);
-    console.log("element",tempStep.element);
+    // console.log("element",tempStep.element);
     addChange({ step: {newStep: tempStep, oldStep: step} });
     
-    console.log("step",step);
-    console.log("tempStep",tempStep);
+    console.log("textHandler - 3",{step, tempStep});
 }
 
 function addChange(newChange) {
@@ -695,7 +799,7 @@ function addChange(newChange) {
 }
 
 function findStepByElem(elemID) { 
-    console.log(elemID);
+    // console.log(elemID);
     let cs = currentFirst;
     while (cs) {
         if (cs.element) {
@@ -706,9 +810,6 @@ function findStepByElem(elemID) {
             }
         }
         cs = cs.next;
-        // if (isChangesApplied && currStep && currStep.changedStep) {
-        //     currStep = currStep.changedStep;
-        // }
     }
     return 1;
 }
