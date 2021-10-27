@@ -58,6 +58,7 @@ if (standAlone === 'false') {
 }
 else {
     console.log('stand alone');
+    init(decodeURIComponent(urlParams.get('url')))
 }
 
 function init(url) {
@@ -116,37 +117,37 @@ function init(url) {
     toggleNav(currentFirst);
 
     // Listening for x-cld-error header
-    chrome.webRequest.onHeadersReceived.addListener(
-        function(details) {
-            // console.log(details.responseHeaders);
-            let ei = details.responseHeaders.find((h) => h.name === "x-cld-error");
-            if (ei) {
-                error = ei.value;
-                document.getElementById("error").innerText = ei.value;
-                previewElem.onload = () => previewElem.parentNode.classList.remove("skeleton");
-            }
-            else {
-                error = '';
-                document.getElementById("error").innerText = '';
-            }
-            return {responseHeaders: details.responseHeaders};
-        },
-        // filters
-        {urls: ['*://*.cloudinary.com/*']},
-        // extraInfoSpec
-        ['responseHeaders'] //, 'extraHeaders']);
-    );
+    // browser.webRequest.onHeadersReceived.addListener(
+    //     function(details) {
+    //         // console.log(details.responseHeaders);
+    //         let ei = details.responseHeaders.find((h) => h.name === "x-cld-error");
+    //         if (ei) {
+    //             error = ei.value;
+    //             document.getElementById("error").innerText = ei.value;
+    //             previewElem.onload = () => previewElem.parentNode.classList.remove("skeleton");
+    //         }
+    //         else {
+    //             error = '';
+    //             document.getElementById("error").innerText = '';
+    //         }
+    //         return {responseHeaders: details.responseHeaders};
+    //     },
+    //     // filters
+    //     {urls: ['*://*.cloudinary.com/*']},
+    //     // extraInfoSpec
+    //     ['responseHeaders'] //, 'extraHeaders']);
+    // );
 
-    // configure "loading" gesture
-    observer = new MutationObserver((changes) => {
-        changes.forEach(change => {
-            if(change.attributeName.includes('src')){
-                previewElem.parentNode.classList.add("skeleton");
-            }
-        });
-    });
-    observer.observe(previewElem, {attributes : true});
-    previewElem.onload = () => previewElem.parentNode.classList.remove("skeleton");
+    // // configure "loading" gesture
+    // observer = new MutationObserver((changes) => {
+    //     changes.forEach(change => {
+    //         if(change.attributeName.includes('src')){
+    //             previewElem.parentNode.classList.add("skeleton");
+    //         }
+    //     });
+    // });
+    // observer.observe(previewElem, {attributes : true});
+    // previewElem.onload = () => previewElem.parentNode.classList.remove("skeleton");
 
     function generateSteps(layerMap, trStrings) {
         const oldSteps = stringifySteps(layerMap, trStrings)
@@ -489,9 +490,32 @@ function updateViewCurElem(step, isNext, isTraverse) {
         }
     }
 
-    url = generateURL(step); //
-    document.getElementById("preview").src = url; //
-    document.getElementById("URL").innerText = url; //
+    // url = generateURL(step); //
+    // document.getElementById("preview").src = url; //
+    // document.getElementById("URL").innerText = url; //
+
+    url = generateURL(step);
+    const prevElem = document.getElementById("preview");
+    fetch(url).then( response => {
+        const error = response.headers.get('x-cld-error');
+        if (error) throw Error(error);
+        else return response.blob()
+    })
+    .then( blob => {
+        const objectURL = URL.createObjectURL(blob);
+        prevElem.src = objectURL;
+        prevElem.hidden = false;
+        document.getElementById("URL").innerText = url;
+        error = '';
+        document.getElementById("error").innerText = '';
+    })
+    .catch( err => {
+        console.log(err);
+        error = err;
+        document.getElementById("error").innerText = err;
+        prevElem.hidden = true;
+        // prevElem.onload = () => prevElem.parentNode.classList.remove("skeleton");
+    });
 
     // const bu = beautifyURL(step);
     // document.getElementById("transformation").innerText = bu === '' ? "edit" : bu;
@@ -833,7 +857,7 @@ function resetPrevElems() {
 
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Interact_with_the_clipboard
 function copyURL() {
-    const copyText = document.getElementById("URL").innerText;
+    const copyText = document.getElementById("URL").innerText; // consider encodeURI
     navigator.clipboard.writeText(copyText).then(function() {
         alert("URL copied to clipboard!");
     }, function() {
