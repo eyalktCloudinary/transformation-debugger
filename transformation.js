@@ -94,8 +94,8 @@ function init(url) {
     document.getElementById("apply").onclick = applyChanges;
     document.getElementById("apply").disabled = true;
     document.getElementById("copyURL").onclick = copyURL;
-    document.getElementById("jumpToEnd").onclick = jumpToEnd;
-    document.getElementById("jumpToStart").onclick = jumpToStart;
+    document.getElementById("jumpToEnd").onclick = () => jumpTo('end'); // jumpToEnd;
+    document.getElementById("jumpToStart").onclick = () => jumpTo('start'); // jumpToStart;
 
     const initialURL = generateURL(currentFirst);
 
@@ -112,8 +112,8 @@ function init(url) {
 
     // configure URL and navigator elements
     document.getElementById("URL").innerText = initialURL;
-    document.getElementById("prev").onclick = prev;
-    document.getElementById("next").onclick = next;
+    document.getElementById("prev").onclick = () => move('prev'); //prev;
+    document.getElementById("next").onclick = () => move('next'); //next;
     toggleNav(currentFirst);
 
     // Listening for x-cld-error header
@@ -310,44 +310,17 @@ function copyStep(step, isOriginal) { // isOriginal -> whether the new step is o
     return newStep;
 }
 
-function prev() {
-    index--;
-    console.log("prev",currentStep);
-    // if (isChangesMade) { // changes were made but not applied
-    //     currentStep.element.remove();
-    //     currentStep.element = createElem(currentStep, currentStep.element.id);
-    //     tempStep = undefined;
-    //     navigateHelper(currentStep, false);
-    //     document.getElementById("apply").disabled = true;
-    // }
+function move(direction) { // direction = next/prev
     if (isChangesMade) { // changes were made but not applied
         discardChanges();
     }
-    currentStep = currentStep.prev;
-    navigateHelper(currentStep, false);
-    // if (!step.next.ancestor) renderPrevElems(currentStep, false);
-    return currentStep;
-}
-
-function next() {
-    index++;
-    // if (isChangesMade) { // changes were made but not applied
-    //     currentStep.element.remove();
-    //     currentStep.element = createElem(currentStep, currentStep.element.id);
-    //     tempStep = undefined;
-    //     navigateHelper(currentStep, true);
-    //     document.getElementById("apply").disabled = true;
-    // }
-    if (isChangesMade) { // changes were made but not applied
-        discardChanges();
-    }
-    currentStep = currentStep.next;
-    navigateHelper(currentStep, true);
-    // if (!step.ancestor) renderPrevElems(currentStep, true);
+    currentStep = currentStep[direction];
+    navigateHelper(currentStep, direction, true);
     return currentStep;
 }
 
 function discardChanges() {
+    if (!isChangesMade) return;
     console.log("discardChanges", {changesMade});
     changesMade.forEach(change => {
         if (change.step) {
@@ -367,41 +340,22 @@ function discardChanges() {
     if (!changesApplied) document.getElementById("reset").disabled = true;
 }
 
-function jumpToEnd() {
+function jumpTo(where) {  // where = start/end
     let cs = currentStep;
-    // resetPrevElems();
+    const direction = where === 'start' ? 'prev' : 'next';
+    discardChanges();  // changes were made but not applied
     while (cs) {
-        cs = cs.next;
-        if (cs) currentStep = next();
-        // navigateHelper(cs,true);
+        if (cs[direction]) {
+            cs = cs[direction];
+            // if (cs) currentStep = prev();
+            navigateHelper(cs, direction, false);
+        }
+        else { 
+            currentStep = cs;
+            navigateHelper(cs, direction, true);
+            break;
+        }
     }
-}
-
-function jumpToStart() {
-    let cs = currentStep;
-    // resetPrevElems();
-    while (cs) {
-        cs = cs.prev;
-        if (cs) currentStep = prev();
-        // navigateHelper(cs,true);
-    }
-
-}
-
-// Not in use atm
-function jumpToStep(step) { ////
-    let cs = currentFirst;
-    // resetPrevElems();
-    while (cs !== step) {
-        // renderPrevElems(cs, true);
-        // if (!cs.ancestor) renderPrevElems(cs, true);
-        // cs = cs.next;
-        cs = cs.next;
-        if (cs) next();
-    }
-    // next();
-    // updateViewCurElem(cs); // cs is step
-    // currentStep = step;
 }
 
 function createElem(step, id) {
@@ -441,9 +395,9 @@ function createElem(step, id) {
     return elem;
 }
 
-function navigateHelper(step, isNext) { // isNext is boolean representing direction
+function navigateHelper(step, direction, shouldShow) { // isNext is boolean representing direction
     // isChangesMade = false;
-    updateViewCurElem(step, isNext, true);
+    updateViewCurElem(step, direction, true, shouldShow);
     // let prevStep = step.prev;//getPrevElem(step);
     // console.log("step", step);
     // console.log("prevStep", prevStep);
@@ -458,7 +412,8 @@ function navigateHelper(step, isNext) { // isNext is boolean representing direct
     // if (!isNext && !step.next.ancestor) renderPrevElems(prevStep, false); /
 }
 
-function updateViewCurElem(step, isNext, isTraverse) {
+function updateViewCurElem(step, direction, isTraverse, shouldShow) {
+    const isNext = direction === 'next';
     console.log("up", step);
     // url = generateURL(step); //
     // document.getElementById("preview").src = url; //
@@ -494,28 +449,31 @@ function updateViewCurElem(step, isNext, isTraverse) {
     // document.getElementById("preview").src = url; //
     // document.getElementById("URL").innerText = url; //
 
-    url = generateURL(step);
-    const prevElem = document.getElementById("preview");
-    fetch(url).then( response => {
-        const error = response.headers.get('x-cld-error');
-        if (error) throw Error(error);
-        else return response.blob()
-    })
-    .then( blob => {
-        const objectURL = URL.createObjectURL(blob);
-        prevElem.src = objectURL;
-        prevElem.hidden = false;
-        document.getElementById("URL").innerText = url;
-        error = '';
-        document.getElementById("error").innerText = '';
-    })
-    .catch( err => {
-        console.log(err);
-        error = err;
-        document.getElementById("error").innerText = err;
-        prevElem.hidden = true;
-        // prevElem.onload = () => prevElem.parentNode.classList.remove("skeleton");
-    });
+    if (shouldShow) {
+
+        url = generateURL(step);
+        const prevElem = document.getElementById("preview");
+        fetch(url).then( response => {
+            const error = response.headers.get('x-cld-error');
+            if (error) throw Error(error);
+            else return response.blob()
+        })
+        .then( blob => {
+            const objectURL = URL.createObjectURL(blob);
+            prevElem.src = objectURL;
+            prevElem.hidden = false;
+            document.getElementById("URL").innerText = url;
+            error = '';
+            document.getElementById("error").innerText = '';
+        })
+        .catch( err => {
+            console.log(err);
+            error = err;
+            document.getElementById("error").innerText = err;
+            prevElem.hidden = true;
+            // prevElem.onload = () => prevElem.parentNode.classList.remove("skeleton");
+        });
+    }
 
     // const bu = beautifyURL(step);
     // document.getElementById("transformation").innerText = bu === '' ? "edit" : bu;
