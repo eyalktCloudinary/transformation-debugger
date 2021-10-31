@@ -24,8 +24,6 @@ let prefixURL,
  /**
   *  TODO:
   * 
-  * make it a standalone app
-  * 
   * add - UI/option to add steps + listen to "/", newline key
   * 
   * add - show curr image details - dimensions, ?
@@ -114,7 +112,7 @@ function init(url) {
     document.getElementById("URL").innerText = initialURL;
     document.getElementById("prev").onclick = () => move('prev'); //prev;
     document.getElementById("next").onclick = () => move('next'); //next;
-    toggleNav(currentFirst);
+    toggleNavButtons(currentFirst);
 
     // Listening for x-cld-error header
     // browser.webRequest.onHeadersReceived.addListener(
@@ -310,6 +308,43 @@ function copyStep(step, isOriginal) { // isOriginal -> whether the new step is o
     return newStep;
 }
 
+function createElem(step, id) {
+    const elem = document.createElement("div");
+
+    if (step.stepStr.length === 2) {
+        const start = document.createElement("div");
+        start.innerText = step.stepStr[0];
+        start.id = id + "s";
+        start.contentEditable = true;
+        start.spellcheck = false;
+        const end = document.createElement("div");
+        end.innerText = step.stepStr[1];
+        end.id = id + "e";
+        end.contentEditable = true;
+        end.spellcheck = false;
+        elem.appendChild(start);
+        elem.appendChild(end);
+    }
+    else {
+        elem.innerText = step.stepStr[0]; // createElement
+        elem.contentEditable = true;
+        elem.spellcheck = false;
+    }
+    elem.id = id;
+
+    // prevent new-lines from being added by the user
+    elem.addEventListener('beforeinput', (e) => {
+        console.log("beforeinput", e);
+        if (e.inputType === "insertParagraph") e.preventDefault();
+    })
+    
+    elem.oninput = (e) => {
+        textHandler(step, e.target.innerText, e.target.id);
+    }
+    
+    return elem;
+}
+
 function move(direction) { // direction = next/prev
     if (isChangesMade) { // changes were made but not applied
         discardChanges();
@@ -358,43 +393,6 @@ function jumpTo(where) {  // where = start/end
     }
 }
 
-function createElem(step, id) {
-    const elem = document.createElement("div");
-
-    if (step.stepStr.length === 2) {
-        const start = document.createElement("div");
-        start.innerText = step.stepStr[0];
-        start.id = id + "s";
-        start.contentEditable = true;
-        start.spellcheck = false;
-        const end = document.createElement("div");
-        end.innerText = step.stepStr[1];
-        end.id = id + "e";
-        end.contentEditable = true;
-        end.spellcheck = false;
-        elem.appendChild(start);
-        elem.appendChild(end);
-    }
-    else {
-        elem.innerText = step.stepStr[0]; // createElement
-        elem.contentEditable = true;
-        elem.spellcheck = false;
-    }
-    elem.id = id;
-
-    // prevent new-lines from being added by the user
-    elem.addEventListener('beforeinput', (e) => {
-        console.log("beforeinput", e);
-        if (e.inputType === "insertParagraph") e.preventDefault();
-    })
-    
-    elem.oninput = (e) => {
-        textHandler(step, e.target.innerText, e.target.id);
-    }
-    
-    return elem;
-}
-
 function updateViewCurElem(step, direction, isTraverse, shouldShow) {
     const isNext = direction === 'next';
     console.log("up", step);
@@ -412,11 +410,10 @@ function updateViewCurElem(step, direction, isTraverse, shouldShow) {
 
     else if (step.ancestor) {
         console.log("append", step.element.innerText);
-        // step.ancestor.element.empty();
         let el = document.getElementById(step.element.id);
         if (el) el.remove();
-        appendLayer(step);
-        // document.getElementById("transformation").appendChild(step.element); ////
+        // append layer element 
+        step.ancestor.element.insertBefore(step.element, step.ancestor.element.lastElementChild); 
     }
     else {
         // document.getElementById("transformation").innerText = '';
@@ -460,15 +457,10 @@ function updateViewCurElem(step, direction, isTraverse, shouldShow) {
 
     // const bu = beautifyURL(step);
     // document.getElementById("transformation").innerText = bu === '' ? "edit" : bu;
-    toggleNav(step);
+    toggleNavButtons(step);
 }
 
-function appendLayer(step) {
-    step.ancestor.element.insertBefore(step.element, step.ancestor.element.lastElementChild); 
-    // document.getElementById(step.ancestor.element.lastElementChild).insertBefore
-}
-
-function toggleNav(step) {
+function toggleNavButtons(step) {
     if (step === currentFirst) {
         document.getElementById("prev").disabled = true;
         document.getElementById("jumpToStart").disabled = true;
@@ -541,7 +533,7 @@ function applyChanges() {
     if (!changesMade.length) return;
     changesMade.forEach(change => {
         if (change.step) {
-            applySingleChange(change);
+            applySingleStepChange(change);
             resetElems(change.step.oldStep, true); // retreive original elements to their original state
         }
         else if (change.suffix) applySuffixChange(change);
@@ -551,7 +543,7 @@ function applyChanges() {
 
     currentFirst = firstStepChanged;
 
-    updateViewAllElems(currentStep, currentFirst);
+    applyChangesToView(currentStep, currentFirst);
 
     isChangesApplied = true;
     isChangesMade = false; 
@@ -564,41 +556,32 @@ function applySuffixChange(change) {
     currentSuffix = change.suffix.newSuffix;
 }
 
-function applySingleChange(change) {
-    console.log("applySingleChange", {change, isChangesApplied});
+function applySingleStepChange(change) {
+    console.log("applySingleStepChange", {change, isChangesApplied});
     let tempStep = change.step.newStep; 
-    let oldStep = change.step.oldStep;
-    // let isChangesApplied = currentFirst === firstStepChanged;
+
+    // false = first click on apply (editing was made to the original steps)
+    const stepToSwitch = isChangesApplied ? change.step.oldStep : change.step.oldStep.siblingStep; 
+    tempStep.prev = stepToSwitch.prev;
+    tempStep.next = stepToSwitch.next;
+    insertStep(tempStep, tempStep.prev, tempStep.next);
     
-    // if (!isChangesMade) return;
-    if (!isChangesApplied) { // first click on apply (editing the original steps list) 
-        let stepToSwitch = change.step.oldStep.siblingStep; 
-        tempStep.prev = stepToSwitch.prev;
-        tempStep.next = stepToSwitch.next;
-        insertStep(tempStep,  tempStep.prev, tempStep.next);
-        
+    if (!isChangesApplied) { 
         tempStep.siblingStep.siblingStep = tempStep;
-        tempStep.siblingStep.element = createElem(tempStep.siblingStep, tempStep.siblingStep.element.id);
-        
-        // if step is ancestor - update all decendents
-        updateDecendents(stepToSwitch, tempStep, firstStepChanged);
-        
-        //console.log("first applied", "tempStep",tempStep,"currentStep",currentStep);
-    } else {
-        let stepToSwitch = change.step.oldStep; 
-        tempStep.prev = stepToSwitch.prev;
-        tempStep.next = stepToSwitch.next;
-        insertStep(tempStep, tempStep.prev, tempStep.next);
+        tempStep.siblingStep.element = createElem(tempStep.siblingStep, tempStep.siblingStep.element.id);     
+    } 
+    else {
         tempStep.siblingStep = tempStep.siblingStep.siblingStep;
         tempStep.siblingStep.siblingStep = tempStep;
-
         if (change.step.oldStep === currentStep) currentStep = tempStep;
-        updateDecendents(stepToSwitch, tempStep, firstStepChanged);
-        console.log("applied", currentStep);
     }
 
+    // if step is ancestor - update all decendents
+    updateDecendents(stepToSwitch, tempStep, firstStepChanged);
+    
     if (!tempStep.prev) firstStepChanged = tempStep;
-
+    
+    console.log("applied", currentStep);
 }
 
 function updateDecendents(oldStep, newStep, first) {
@@ -609,14 +592,14 @@ function updateDecendents(oldStep, newStep, first) {
     }
 }
 
-function updateViewAllElems(currentStep, currentFirst) {
+function applyChangesToView(currentStep, currentFirst) {
     resetPrevElems();
     let cs = currentFirst;
     while (cs !== currentStep) {
-        updateViewCurElem(cs, true, true); 
+        updateViewCurElem(cs, 'next', true, false); 
         cs = cs.next;
     }
-    updateViewCurElem(cs, true, true); 
+    updateViewCurElem(cs, 'next', true, true); 
 }
 
 function insertStep(step, prev, next) {
