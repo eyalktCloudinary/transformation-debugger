@@ -315,7 +315,7 @@ function move(direction) { // direction = next/prev
         discardChanges();
     }
     currentStep = currentStep[direction];
-    navigateHelper(currentStep, direction, true);
+    updateViewCurElem(currentStep, direction, true, true);
     return currentStep;
 }
 
@@ -335,7 +335,7 @@ function discardChanges() {
     });
     changesMade = [];
     isChangesMade = false;
-    navigateHelper(currentStep, true);
+    updateViewCurElem(currentStep, 'next', true, true);
     document.getElementById("apply").disabled = true;
     if (!changesApplied) document.getElementById("reset").disabled = true;
 }
@@ -348,11 +348,11 @@ function jumpTo(where) {  // where = start/end
         if (cs[direction]) {
             cs = cs[direction];
             // if (cs) currentStep = prev();
-            navigateHelper(cs, direction, false);
+            updateViewCurElem(cs, direction, true, false);
         }
         else { 
             currentStep = cs;
-            navigateHelper(cs, direction, true);
+            updateViewCurElem(cs, direction, true, true);
             break;
         }
     }
@@ -393,23 +393,6 @@ function createElem(step, id) {
     }
     
     return elem;
-}
-
-function navigateHelper(step, direction, shouldShow) { // isNext is boolean representing direction
-    // isChangesMade = false;
-    updateViewCurElem(step, direction, true, shouldShow);
-    // let prevStep = step.prev;//getPrevElem(step);
-    // console.log("step", step);
-    // console.log("prevStep", prevStep);
-
-    // if (isNext && !step.ancestor) renderPrevElems(prevStep, isNext); /
-
-    // if (isNext) {
-    //     if (!step.ancestor) renderPrevElems(prevStep, true);
-    //     else 
-    // }
-
-    // if (!isNext && !step.next.ancestor) renderPrevElems(prevStep, false); /
 }
 
 function updateViewCurElem(step, direction, isTraverse, shouldShow) {
@@ -511,7 +494,7 @@ function reset() {
     resetSuffix();
     changesMade = [];
     resetPrevElems();
-    updateViewCurElem(currentStep, true, true);
+    updateViewCurElem(currentStep, true, true, true);
     document.getElementById("reset").disabled = true;
     document.getElementById("apply").disabled = true;
 }
