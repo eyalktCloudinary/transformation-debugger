@@ -26,6 +26,9 @@ let prefixURL,
   * 
   * add - UI/option to add steps + listen to "/", newline key
   * 
+  * add - hover color (orange?) for public ID
+  * add - button to go back to index.html
+  * 
   * add - show curr image details - dimensions, ?
   * fix - derive elem type from URL ('image/upload' can be also a video, and 'video/upload' can be also an image)
   * add - "undo" "redo"
@@ -273,6 +276,16 @@ function init(url) {
         console.log("layerMap", layerMap);
         return layerMap;
     }
+
+    // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Interact_with_the_clipboard
+    function copyURL() {
+        const copyText = document.getElementById("URL").innerText; // consider encodeURI
+        navigator.clipboard.writeText(copyText).then(function() {
+            alert("URL copied to clipboard!");
+        }, function() {
+            alert("Error - Couldn't copy URL");
+        });
+    }
 }
 
 function copyStepsList(from, to) {
@@ -308,7 +321,7 @@ function copyStep(step, isOriginal) { // isOriginal -> whether the new step is o
     return newStep;
 }
 
-function createElem(step, id) {
+function createElem(step, id) { // TODO - change name to createStepElem
     const elem = document.createElement("div");
 
     if (step.stepStr.length === 2) {
@@ -663,15 +676,7 @@ function generateURLbyElems(params) {
 
 }
 
-function beautifyURL(step) {
-    console.log("b",step.stepStr);
-    return step.stepStr;// + "\n";
-}
-
 function textHandler(step, currTextValue, elemID) {
-    // console.log("currTextValue", currTextValue, "elemID", elemID);
-    // console.log("th-step",step);
-    // console.log("step?",findStepByElem(elemID));
     console.log("textHandler - 1", step, currTextValue, elemID);
     step = findStepByElem(elemID);
 
@@ -684,12 +689,11 @@ function textHandler(step, currTextValue, elemID) {
     let tempStep;
     let oldChange = changesMade.find(change => change.step && change.step.oldStep === step);
     if (oldChange) tempStep = oldChange.newStep;
-    // const newElement = step.element.cloneNode(true);
     console.log("textHandler - 2", {tempStep,oldChange});
-    if (!tempStep) {
-        if (isOriginal) {
+
+    if (!tempStep) {     // 1st change to this step in this editing
+        if (isOriginal) { // (no changes were applied yet)
             tempStep = copyStep(step.siblingStep, false);
-            // console.log("1 - element",tempStep);
             tempStep.siblingStep = step; ///
             tempStep.ancestor = step.siblingStep.ancestor; ///////////////////////////////////////////////
             tempStep.next = step.siblingStep.next;
@@ -777,16 +781,6 @@ function renderPrevElems(prevStep, isNext) { //assumes elements were created (in
 
 function resetPrevElems() {
     document.getElementById("steps").innerHTML = "";
-}
-
-// https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Interact_with_the_clipboard
-function copyURL() {
-    const copyText = document.getElementById("URL").innerText; // consider encodeURI
-    navigator.clipboard.writeText(copyText).then(function() {
-        alert("URL copied to clipboard!");
-    }, function() {
-        alert("Error - Couldn't copy URL");
-    });
 }
 
 function suffixHandler(innerText) { //changesMade /////////////////////////////

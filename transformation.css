@@ -161,6 +161,7 @@ padding: 12px;
 }
 
 div#steps div {
+    margin: 2px auto;
     padding-left: 14px;
     /* margin-left: 12px; */
     /* padding-left: 2px; */
