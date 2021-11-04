@@ -161,7 +161,7 @@ padding: 12px;
 }
 
 div#steps div {
-    margin: 2px auto;
+    /* margin: 2px auto; */
     padding-left: 14px;
     /* margin-left: 12px; */
     /* padding-left: 2px; */
@@ -231,4 +231,15 @@ div#urlPrefix::after {
     color: darkgray;
 }
 
+div#steps .steps {
+    display: flex;
+    justify-content: space-between;
+}
 
+.steps:hover .step-actions {
+    display: block;
+}
+
+.steps:hover .step-actions button::after {
+    content: "+";
+}

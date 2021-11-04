@@ -323,25 +323,81 @@ function copyStep(step, isOriginal) { // isOriginal -> whether the new step is o
 
 function createElem(step, id) { // TODO - change name to createStepElem
     const elem = document.createElement("div");
+    const addCallback = () => console.log('add');
 
     if (step.stepStr.length === 2) {
+        // const start = document.createElement("div");
+        // start.innerText = step.stepStr[0];
+        // start.id = id + "s";
+        // start.contentEditable = true;
+        // start.spellcheck = false;
+        // elem.appendChild(start);
+
         const start = document.createElement("div");
-        start.innerText = step.stepStr[0];
+        start.classList.add('steps','start');
         start.id = id + "s";
-        start.contentEditable = true;
-        start.spellcheck = false;
-        const end = document.createElement("div");
-        end.innerText = step.stepStr[1];
-        end.id = id + "e";
-        end.contentEditable = true;
-        end.spellcheck = false;
+        const startText = document.createElement("div");
+        startText.innerText = step.stepStr[0];
+        startText.contentEditable = true;
+        startText.spellcheck = false;
+        startText.classList.add('step-tr');
+        const startActions = document.createElement("div");
+        startActions.classList.add("step-actions");
+        const startAdd = document.createElement("button");
+        startAdd.onclick = addCallback;
+        startActions.hidden = true;
+        startActions.appendChild(startAdd);
+        start.appendChild(startText);
+        start.appendChild(startActions);
         elem.appendChild(start);
+
+        // const end = document.createElement("div");
+        // end.innerText = step.stepStr[1];
+        // end.id = id + "e";
+        // end.contentEditable = true;
+        // end.spellcheck = false;
+        // elem.appendChild(end);
+
+        const end = document.createElement("div");
+        end.classList.add('steps','end');
+        end.id = id + "s";
+        const endText = document.createElement("div");
+        endText.innerText = step.stepStr[1];
+        endText.contentEditable = true;
+        endText.spellcheck = false;
+        endText.classList.add('step-tr');
+        const endActions = document.createElement("div");
+        endActions.classList.add("step-actions");
+        const endAdd = document.createElement("button");
+        endAdd.onclick = addCallback;
+        endActions.hidden = true;
+        endActions.appendChild(endAdd);
+        end.appendChild(endText);
+        end.appendChild(endActions);
         elem.appendChild(end);
     }
     else {
-        elem.innerText = step.stepStr[0]; // createElement
-        elem.contentEditable = true;
-        elem.spellcheck = false;
+        // elem.innerText = step.stepStr[0]; // createElement
+        // elem.contentEditable = true;
+        // elem.spellcheck = false;
+        // elem.classList.add('steps');
+
+        const textElem = document.createElement("div");
+        textElem.innerText = step.stepStr[0]; // createElement
+        textElem.contentEditable = true;
+        textElem.spellcheck = false;
+        textElem.classList.add('step-tr');
+        elem.appendChild(textElem);
+
+        const stepActions = document.createElement("div");
+        stepActions.classList.add("step-actions");
+        const addButton = document.createElement("button");
+        addButton.onclick = addCallback;
+        stepActions.hidden = true;
+        stepActions.appendChild(addButton);
+        elem.appendChild(stepActions);
+
+        elem.classList.add('steps');
     }
     elem.id = id;
 
@@ -351,10 +407,18 @@ function createElem(step, id) { // TODO - change name to createStepElem
         if (e.inputType === "insertParagraph") e.preventDefault();
     })
     
-    elem.oninput = (e) => {
-        textHandler(step, e.target.innerText, e.target.id);
+    elem.oninput = e => {
+        textHandler(step, e.target.innerText, e.target.parentElement.id); //e.target.id);
     }
-    
+
+    elem.onclick = e => {
+        const targetElem = e.target;
+        if (targetElem.classList.contains('steps')) {
+            console.log(targetElem);
+            targetElem.querySelector('.step-tr').focus();
+        }
+    }
+
     return elem;
 }
 
