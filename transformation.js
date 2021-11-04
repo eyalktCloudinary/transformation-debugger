@@ -163,7 +163,7 @@ function init(url) {
             siblingStep:        undefined,
             isOriginalSteps:    true
         }
-        firstStep.element = createElem(firstStep, "step" + i);
+        firstStep.element = createStepElem(firstStep, "step" + i);
         i++;
         currStep = firstStep;
         for (; i < oldSteps.length; i++) {
@@ -175,7 +175,7 @@ function init(url) {
                 siblingStep:        undefined,
                 isOriginalSteps:    true
             }
-            newStep.element = createElem(newStep, "step" + i);
+            newStep.element = createStepElem(newStep, "step" + i);
             oldSteps[i].newStep = newStep;
             currStep.next = newStep;
             currStep = newStep;
@@ -316,105 +316,68 @@ function copyStep(step, isOriginal) { // isOriginal -> whether the new step is o
         element:            undefined,
         isOriginalSteps:    isOriginal
     }
-    if (step.isOriginalSteps) newStep.element = createElem(newStep, step.element.id + "c");
-    else newStep.element = createElem(newStep, step.element.id);
+    if (step.isOriginalSteps) newStep.element = createStepElem(newStep, step.element.id + "c");
+    else newStep.element = createStepElem(newStep, step.element.id);
     return newStep;
 }
 
-function createElem(step, id) { // TODO - change name to createStepElem
+function createStepElem(step, id) { // TODO - change name to createStepElem
     const elem = document.createElement("div");
     const addCallback = () => console.log('add');
-
-    if (step.stepStr.length === 2) {
-        // const start = document.createElement("div");
-        // start.innerText = step.stepStr[0];
-        // start.id = id + "s";
-        // start.contentEditable = true;
-        // start.spellcheck = false;
-        // elem.appendChild(start);
-
-        const start = document.createElement("div");
-        start.classList.add('steps','start');
-        start.id = id + "s";
-        const startText = document.createElement("div");
-        startText.innerText = step.stepStr[0];
-        startText.contentEditable = true;
-        startText.spellcheck = false;
-        startText.classList.add('step-tr');
-        const startActions = document.createElement("div");
-        startActions.classList.add("step-actions");
-        const startAdd = document.createElement("button");
-        startAdd.onclick = addCallback;
-        startActions.hidden = true;
-        startActions.appendChild(startAdd);
-        start.appendChild(startText);
-        start.appendChild(startActions);
-        elem.appendChild(start);
-
-        // const end = document.createElement("div");
-        // end.innerText = step.stepStr[1];
-        // end.id = id + "e";
-        // end.contentEditable = true;
-        // end.spellcheck = false;
-        // elem.appendChild(end);
-
-        const end = document.createElement("div");
-        end.classList.add('steps','end');
-        end.id = id + "s";
-        const endText = document.createElement("div");
-        endText.innerText = step.stepStr[1];
-        endText.contentEditable = true;
-        endText.spellcheck = false;
-        endText.classList.add('step-tr');
-        const endActions = document.createElement("div");
-        endActions.classList.add("step-actions");
-        const endAdd = document.createElement("button");
-        endAdd.onclick = addCallback;
-        endActions.hidden = true;
-        endActions.appendChild(endAdd);
-        end.appendChild(endText);
-        end.appendChild(endActions);
-        elem.appendChild(end);
-    }
-    else {
-        // elem.innerText = step.stepStr[0]; // createElement
-        // elem.contentEditable = true;
-        // elem.spellcheck = false;
-        // elem.classList.add('steps');
-
-        const textElem = document.createElement("div");
-        textElem.innerText = step.stepStr[0]; // createElement
-        textElem.contentEditable = true;
-        textElem.spellcheck = false;
-        textElem.classList.add('step-tr');
-        elem.appendChild(textElem);
-
-        const stepActions = document.createElement("div");
-        stepActions.classList.add("step-actions");
-        const addButton = document.createElement("button");
-        addButton.onclick = addCallback;
-        stepActions.hidden = true;
-        stepActions.appendChild(addButton);
-        elem.appendChild(stepActions);
-
-        elem.classList.add('steps');
-    }
     elem.id = id;
 
-    // prevent new-lines from being added by the user
-    elem.addEventListener('beforeinput', (e) => {
-        console.log("beforeinput", e);
-        if (e.inputType === "insertParagraph") e.preventDefault();
-    })
-    
-    elem.oninput = e => {
-        textHandler(step, e.target.innerText, e.target.parentElement.id); //e.target.id);
+    const createTextElement = transformationText => {
+        const elem = document.createElement("div");
+        elem.innerText = transformationText;
+        elem.contentEditable = true;
+        elem.spellcheck = false;
+        elem.classList.add('step-tr');
+
+        // prevent new-lines from being added by the user
+        elem.addEventListener('beforeinput', (e) => {
+            console.log("beforeinput", e);
+            if (e.inputType === "insertParagraph") e.preventDefault();
+        })
+
+        elem.oninput = e => {
+            textHandler(step, e.target.innerText, e.target.parentElement.id); //e.target.id);
+        }
+
+        return elem;
+    }
+    const createActionElement = () => {
+        const elem = document.createElement("div");
+        elem.classList.add("step-actions");
+        const startAdd = document.createElement("button");
+        startAdd.onclick = addCallback;
+        elem.hidden = true;
+        elem.appendChild(startAdd);
+        return elem;
+    }
+    const createLayerElems = (type, transformation) => {
+        const idSuffix = type === 'start' ? 's' : 'e';
+        const elem = document.createElement("div");
+        elem.classList.add('steps', type);
+        elem.id = id + idSuffix;
+        elem.appendChild(createTextElement(transformation));
+        elem.appendChild(createActionElement());
+        return elem;
     }
 
+    if (step.stepStr.length === 2) { // layer step
+        elem.appendChild(createLayerElems('start', step.stepStr[0]));
+        elem.appendChild(createLayerElems('end', step.stepStr[1]));
+    }
+    else {
+        elem.appendChild(createTextElement(step.stepStr[0]));
+        elem.appendChild(createActionElement());
+        elem.classList.add('steps');
+    }
+
+    // focus on textarea when clicked
     elem.onclick = e => {
         const targetElem = e.target;
         if (targetElem.classList.contains('steps')) {
-            console.log(targetElem);
             targetElem.querySelector('.step-tr').focus();
         }
     }
@@ -437,7 +400,7 @@ function discardChanges() {
     changesMade.forEach(change => {
         if (change.step) {
             let cs = change.step.oldStep;
-            let el = createElem(cs, cs.element.id);
+            let el = createStepElem(cs, cs.element.id);
             cs.element.parentNode.replaceChild(el, cs.element);
             cs.element = el;
         }
@@ -590,7 +553,7 @@ function resetSuffix() {
 }
 
 function resetStepElem(step) {
-    step.element = createElem(step, step.element.id);
+    step.element = createStepElem(step, step.element.id);
 }
 
 function resetElems(step, isDeep) { // isDeep => go to ancstors
@@ -645,7 +608,7 @@ function applySingleStepChange(change) {
     
     if (!isChangesApplied) { 
         tempStep.siblingStep.siblingStep = tempStep;
-        tempStep.siblingStep.element = createElem(tempStep.siblingStep, tempStep.siblingStep.element.id);     
+        tempStep.siblingStep.element = createStepElem(tempStep.siblingStep, tempStep.siblingStep.element.id);     
     } 
     else {
         tempStep.siblingStep = tempStep.siblingStep.siblingStep;
@@ -786,7 +749,7 @@ function textHandler(step, currTextValue, elemID) {
         tempStep.stepStr = [newTr];
     }
     
-    tempStep.element = createElem(tempStep, tempStep.element.id);
+    tempStep.element = createStepElem(tempStep, tempStep.element.id);
     // console.log("element",tempStep.element);
     addChange({ step: {newStep: tempStep, oldStep: step} });
     
