@@ -243,3 +243,13 @@ div#steps .steps {
 .steps:hover .step-actions button::after {
     content: "+";
 }
+
+.step-actions .btn-style {
+    width: 20px;
+    height: 20px;
+    color: #717171;
+}
+
+.step-actions .btn-style:hover {
+    background-color: #F3F4FA;
+}

@@ -117,28 +117,6 @@ function init(url) {
     document.getElementById("next").onclick = () => move('next'); //next;
     toggleNavButtons(currentFirst);
 
-    // Listening for x-cld-error header
-    // browser.webRequest.onHeadersReceived.addListener(
-    //     function(details) {
-    //         // console.log(details.responseHeaders);
-    //         let ei = details.responseHeaders.find((h) => h.name === "x-cld-error");
-    //         if (ei) {
-    //             error = ei.value;
-    //             document.getElementById("error").innerText = ei.value;
-    //             previewElem.onload = () => previewElem.parentNode.classList.remove("skeleton");
-    //         }
-    //         else {
-    //             error = '';
-    //             document.getElementById("error").innerText = '';
-    //         }
-    //         return {responseHeaders: details.responseHeaders};
-    //     },
-    //     // filters
-    //     {urls: ['*://*.cloudinary.com/*']},
-    //     // extraInfoSpec
-    //     ['responseHeaders'] //, 'extraHeaders']);
-    // );
-
     // // configure "loading" gesture
     // observer = new MutationObserver((changes) => {
     //     changes.forEach(change => {
@@ -161,12 +139,13 @@ function init(url) {
             next:               undefined,
             prev:               undefined,
             siblingStep:        undefined,
-            isOriginalSteps:    true
+            isOriginalSteps:    true,
+            element:            undefined,
         }
         firstStep.element = createStepElem(firstStep, "step" + i);
         i++;
-        currStep = firstStep;
-        for (; i < oldSteps.length; i++) {
+        // currStep = firstStep;
+        for (currStep = firstStep; i < oldSteps.length; i++) {
             let newStep = {
                 stepStr:            oldSteps[i].stepStr,
                 ancestor:           oldSteps[i].ancestor ? oldSteps[oldSteps[i].ancestor].newStep : undefined,
@@ -350,6 +329,7 @@ function createStepElem(step, id) { // TODO - change name to createStepElem
         elem.classList.add("step-actions");
         const startAdd = document.createElement("button");
         startAdd.onclick = addCallback;
+        startAdd.classList.add('btn-style');
         elem.hidden = true;
         elem.appendChild(startAdd);
         return elem;
@@ -496,7 +476,6 @@ function updateViewCurElem(step, direction, isTraverse, shouldShow) {
     }
 
     // const bu = beautifyURL(step);
-    // document.getElementById("transformation").innerText = bu === '' ? "edit" : bu;
     toggleNavButtons(step);
 }
 
@@ -572,9 +551,9 @@ function applyChanges() {
 
     if (!changesMade.length) return;
     changesMade.forEach(change => {
-        if (change.step) {
+        if (change.stepText) {
             applySingleStepChange(change);
-            resetElems(change.step.oldStep, true); // retreive original elements to their original state
+            resetElems(change.stepText.oldStep, true); // retreive original elements to their original state
         }
         else if (change.suffix) applySuffixChange(change);
     });
@@ -598,10 +577,10 @@ function applySuffixChange(change) {
 
 function applySingleStepChange(change) {
     console.log("applySingleStepChange", {change, isChangesApplied});
-    let tempStep = change.step.newStep; 
+    let tempStep = change.stepText.newStep; 
 
     // false = first click on apply (editing was made to the original steps)
-    const stepToSwitch = isChangesApplied ? change.step.oldStep : change.step.oldStep.siblingStep; 
+    const stepToSwitch = isChangesApplied ? change.stepText.oldStep : change.stepText.oldStep.siblingStep; 
     tempStep.prev = stepToSwitch.prev;
     tempStep.next = stepToSwitch.next;
     insertStep(tempStep, tempStep.prev, tempStep.next);
@@ -613,7 +592,7 @@ function applySingleStepChange(change) {
     else {
         tempStep.siblingStep = tempStep.siblingStep.siblingStep;
         tempStep.siblingStep.siblingStep = tempStep;
-        if (change.step.oldStep === currentStep) currentStep = tempStep;
+        if (change.stepText.oldStep === currentStep) currentStep = tempStep;
     }
 
     // if step is ancestor - update all decendents
@@ -751,21 +730,24 @@ function textHandler(step, currTextValue, elemID) {
     
     tempStep.element = createStepElem(tempStep, tempStep.element.id);
     // console.log("element",tempStep.element);
-    addChange({ step: {newStep: tempStep, oldStep: step} });
+    addChange({ stepText: {newStep: tempStep, oldStep: step} });
     
     console.log("textHandler - 3",{step, tempStep});
 }
 
+// possible changes are - 
+// { stepText: <step transfromation text has been changes> }
+// { suffix: <suffix/public_ic changs> }
 function addChange(newChange) {
-    if  (newChange.step) {  
-        let newStep = newChange.step.newStep;
-        let oldStep = newChange.step.oldStep;
-        let change = changesMade.find(change => change.step && change.step.oldStep === oldStep);
-        if (change) change.step.newStep = newStep; // change.step exists
+    if  (newChange.stepText) {  
+        let newStep = newChange.stepText.newStep;
+        let oldStep = newChange.stepText.oldStep;
+        let change = changesMade.find(change => change.stepText && change.stepText.oldStep === oldStep);
+        if (change) change.stepText.newStep = newStep; // step already chagened during this session - update the changes
         else {
-            change = newChange; //{ newStep, oldStep };
-            if (oldStep.ancestor) { // sublayer should be positioned before their parents
-                let ancestorChange = changesMade.find(change => change.step && change.step.oldStep === oldStep.ancestor);
+            change = newChange;
+            if (oldStep.ancestor) { // sublayer should be positioned in changesMade array before their parents
+                let ancestorChange = changesMade.find(change => change.stepText && change.stepText.oldStep === oldStep.ancestor);
                 let ancestorIndex = changesMade.indexOf(ancestorChange);
                 changesMade.splice(ancestorIndex, 0, change);
             }
